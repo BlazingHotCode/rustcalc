@@ -20,7 +20,7 @@ cargo run
 
 ## Status
 
-This project is currently a starter scaffold (it prints `Hello, world!`). Calculator features will be added next.
+This project is currently a starter scaffold. Calculator features will be added next.
 
 ## License
 
