@@ -2,7 +2,7 @@
 
 This project is set up so you can add **constants**, **functions**, and **operators** by editing a single file:
 
-- `src/builtins.rs`
+- [`src/builtins.rs`](src/builtins.rs)
 
 The parser and evaluator are generic:
 
@@ -12,7 +12,7 @@ The parser and evaluator are generic:
 
 ## Add a constant
 
-In `src/builtins.rs`, add a `BuiltinConst` entry in `CONSTANTS`:
+In [`src/builtins.rs`](src/builtins.rs), add a `BuiltinConst` entry in `CONSTANTS`:
 
 - `name` is stored lowercase (lookup normalizes input name to lowercase).
 
@@ -26,7 +26,7 @@ Then you can use it as `tau` in expressions.
 
 ## Add a function
 
-In `src/builtins.rs`, add a `BuiltinFunc` entry in `FUNCTIONS` and a small `*_impl` function.
+In [`src/builtins.rs`](src/builtins.rs), add a `BuiltinFunc` entry in `FUNCTIONS` and a small `*_impl` function.
 
 Guidelines:
 
@@ -55,7 +55,7 @@ Then you can call it like: `avg(1,2,3,4)`.
 
 ## Add an operator (symbol)
 
-Operators live in the single `OPS` table in `src/builtins.rs`.
+Operators live in the single `OPS` table in [`src/builtins.rs`](src/builtins.rs).
 
 Each `BuiltinOp` entry controls:
 

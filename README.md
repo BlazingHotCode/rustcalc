@@ -42,7 +42,7 @@ max(1,2,3,2)
 
 ## Adding builtins (one place)
 
-All constants, functions, and operators are defined in `src/builtins.rs`.
+All constants, functions, and operators are defined in [`src/builtins.rs`](src/builtins.rs).
 
 - **Add a constant**: add an entry to `CONSTANTS`
 - **Add a function**: add an entry to `FUNCTIONS`
