@@ -1,15 +1,20 @@
 use crate::error::CalcError;
 use crate::lexer::Token;
+use crate::{builtins, builtins::Operator};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Number(f64),
     Identifier(String),
-    Addition(Box<Expression>, Box<Expression>),
-    Subtraction(Box<Expression>, Box<Expression>),
-    Multiplication(Box<Expression>, Box<Expression>),
-    Division(Box<Expression>, Box<Expression>),
-    Exponentiation(Box<Expression>, Box<Expression>),
+    UnaryOp {
+        op: Operator,
+        expr: Box<Expression>,
+    },
+    BinaryOp {
+        op: Operator,
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
     FunctionCall { name: String, args: Vec<Expression> },
     Parenthesis(Box<Expression>),
 }
@@ -42,75 +47,51 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, CalcError> {
-        self.parse_add_sub()
+        self.parse_expr_bp(0)
     }
 
-    fn parse_add_sub(&mut self) -> Result<Expression, CalcError> {
-        let mut left = self.parse_mul_div()?;
+    fn parse_expr_bp(&mut self, min_bp: u8) -> Result<Expression, CalcError> {
+        let mut left = self.parse_prefix()?;
+
         loop {
-            match self.peek() {
-                Token::Plus => {
-                    self.bump();
-                    let right = self.parse_mul_div()?;
-                    left = Expression::Addition(Box::new(left), Box::new(right));
-                }
-                Token::Minus => {
-                    self.bump();
-                    let right = self.parse_mul_div()?;
-                    left = Expression::Subtraction(Box::new(left), Box::new(right));
-                }
-                _ => break,
+            let Token::Op(op) = self.peek().clone() else {
+                break;
+            };
+
+            let Some((l_bp, r_bp)) = builtins::infix_binding_power(op) else {
+                break;
+            };
+            if l_bp < min_bp {
+                break;
             }
+
+            self.bump(); // consume operator
+            let right = self.parse_expr_bp(r_bp)?;
+            left = Expression::BinaryOp {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
+
         Ok(left)
     }
 
-    fn parse_mul_div(&mut self) -> Result<Expression, CalcError> {
-        let mut left = self.parse_unary()?;
-        loop {
-            match self.peek() {
-                Token::Mult => {
-                    self.bump();
-                    let right = self.parse_unary()?;
-                    left = Expression::Multiplication(Box::new(left), Box::new(right));
-                }
-                Token::Div => {
-                    self.bump();
-                    let right = self.parse_unary()?;
-                    left = Expression::Division(Box::new(left), Box::new(right));
-                }
-                _ => break,
-            }
-        }
-        Ok(left)
-    }
-
-    fn parse_unary(&mut self) -> Result<Expression, CalcError> {
-        match self.peek() {
-            Token::Plus => {
+    fn parse_prefix(&mut self) -> Result<Expression, CalcError> {
+        match self.peek().clone() {
+            Token::Op(op) => {
+                let Some(r_bp) = builtins::prefix_binding_power(op) else {
+                    return self.parse_primary();
+                };
                 self.bump();
-                self.parse_unary()
+                let rhs = self.parse_expr_bp(r_bp)?;
+                Ok(Expression::UnaryOp {
+                    op,
+                    expr: Box::new(rhs),
+                })
             }
-            Token::Minus => {
-                self.bump();
-                let expr = self.parse_unary()?;
-                Ok(Expression::Subtraction(
-                    Box::new(Expression::Number(0.0)),
-                    Box::new(expr),
-                ))
-            }
-            _ => self.parse_power(),
+            _ => self.parse_primary(),
         }
-    }
-
-    fn parse_power(&mut self) -> Result<Expression, CalcError> {
-        let left = self.parse_primary()?;
-        if matches!(self.peek(), Token::Pow) {
-            self.bump();
-            let right = self.parse_unary()?; // right-associative
-            return Ok(Expression::Exponentiation(Box::new(left), Box::new(right)));
-        }
-        Ok(left)
     }
 
     fn parse_primary(&mut self) -> Result<Expression, CalcError> {

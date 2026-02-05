@@ -1,4 +1,6 @@
 use crate::error::CalcError;
+use crate::builtins;
+use crate::builtins::Operator;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -6,11 +8,7 @@ pub enum Token {
     Ident(String),
     DecimalPoint,
     Comma,
-    Plus,
-    Minus,
-    Mult,
-    Div,
-    Pow,
+    Op(Operator),
     OpenParen,
     CloseParen,
     EOF,
@@ -43,11 +41,7 @@ pub(crate) fn tokenize(input: &str) -> Result<Vec<Token>, CalcError> {
             }
             '.' => tokens.push(Token::DecimalPoint),
             ',' => tokens.push(Token::Comma),
-            '+' => tokens.push(Token::Plus),
-            '-' => tokens.push(Token::Minus),
-            '*' => tokens.push(Token::Mult),
-            '/' => tokens.push(Token::Div),
-            '^' => tokens.push(Token::Pow),
+            ch if builtins::is_operator_char(ch) => tokens.push(Token::Op(ch)),
             '(' => tokens.push(Token::OpenParen),
             ')' => tokens.push(Token::CloseParen),
             ' ' => {} // Ignore whitespace

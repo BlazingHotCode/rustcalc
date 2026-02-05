@@ -1,5 +1,6 @@
 mod error;
 mod eval;
+mod builtins;
 mod lexer;
 mod parser;
 
@@ -41,9 +42,9 @@ mod tests {
         let input = "12 + 34 - 5";
         let expected_tokens = vec![
             Token::Number(12),
-            Token::Plus,
+            Token::Op('+'),
             Token::Number(34),
-            Token::Minus,
+            Token::Op('-'),
             Token::Number(5),
             Token::EOF,
         ];
@@ -54,19 +55,21 @@ mod tests {
     fn test_parse_tokens_structure() {
         let tokens = vec![
             Token::Number(12),
-            Token::Plus,
+            Token::Op('+'),
             Token::Number(34),
-            Token::Minus,
+            Token::Op('-'),
             Token::Number(5),
             Token::EOF,
         ];
-        let expected_expression = Expression::Subtraction(
-            Box::new(Expression::Addition(
-                Box::new(Expression::Number(12.0)),
-                Box::new(Expression::Number(34.0)),
-            )),
-            Box::new(Expression::Number(5.0)),
-        );
+        let expected_expression = Expression::BinaryOp {
+            op: '-',
+            left: Box::new(Expression::BinaryOp {
+                op: '+',
+                left: Box::new(Expression::Number(12.0)),
+                right: Box::new(Expression::Number(34.0)),
+            }),
+            right: Box::new(Expression::Number(5.0)),
+        };
         assert_eq!(crate::parser::parse_tokens(&tokens).unwrap(), expected_expression);
     }
 
@@ -74,26 +77,27 @@ mod tests {
     fn test_parse_tokens_parentheses_after_plus() {
         let tokens = vec![
             Token::Number(1),
-            Token::Plus,
+            Token::Op('+'),
             Token::OpenParen,
             Token::Number(1),
             Token::CloseParen,
             Token::EOF,
         ];
-        let expected_expression = Expression::Addition(
-            Box::new(Expression::Number(1.0)),
-            Box::new(Expression::Parenthesis(Box::new(Expression::Number(1.0)))),
-        );
+        let expected_expression = Expression::BinaryOp {
+            op: '+',
+            left: Box::new(Expression::Number(1.0)),
+            right: Box::new(Expression::Parenthesis(Box::new(Expression::Number(1.0)))),
+        };
         assert_eq!(crate::parser::parse_tokens(&tokens).unwrap(), expected_expression);
     }
 
     #[test]
     fn test_parse_tokens_unary_minus() {
-        let tokens = vec![Token::Minus, Token::Number(1), Token::EOF];
-        let expected_expression = Expression::Subtraction(
-            Box::new(Expression::Number(0.0)),
-            Box::new(Expression::Number(1.0)),
-        );
+        let tokens = vec![Token::Op('-'), Token::Number(1), Token::EOF];
+        let expected_expression = Expression::UnaryOp {
+            op: '-',
+            expr: Box::new(Expression::Number(1.0)),
+        };
         assert_eq!(crate::parser::parse_tokens(&tokens).unwrap(), expected_expression);
     }
 
@@ -101,18 +105,19 @@ mod tests {
     fn test_parse_tokens_plus_then_unary_minus() {
         let tokens = vec![
             Token::Number(1),
-            Token::Plus,
-            Token::Minus,
+            Token::Op('+'),
+            Token::Op('-'),
             Token::Number(1),
             Token::EOF,
         ];
-        let expected_expression = Expression::Addition(
-            Box::new(Expression::Number(1.0)),
-            Box::new(Expression::Subtraction(
-                Box::new(Expression::Number(0.0)),
-                Box::new(Expression::Number(1.0)),
-            )),
-        );
+        let expected_expression = Expression::BinaryOp {
+            op: '+',
+            left: Box::new(Expression::Number(1.0)),
+            right: Box::new(Expression::UnaryOp {
+                op: '-',
+                expr: Box::new(Expression::Number(1.0)),
+            }),
+        };
         assert_eq!(crate::parser::parse_tokens(&tokens).unwrap(), expected_expression);
     }
 
