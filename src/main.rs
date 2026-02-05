@@ -6,6 +6,7 @@ use std::{
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
     Number(i32),
+    Ident(String),
     DecimalPoint,
     Plus,
     Minus,
@@ -20,11 +21,13 @@ enum Token {
 #[derive(Debug, PartialEq, Clone)]
 enum Expression {
     Number(f64),
+    Identifier(String),
     Addition(Box<Expression>, Box<Expression>),
     Subtraction(Box<Expression>, Box<Expression>),
     Multiplication(Box<Expression>, Box<Expression>),
     Division(Box<Expression>, Box<Expression>),
     Exponentiation(Box<Expression>, Box<Expression>),
+    FunctionCall { name: String, arg: Box<Expression> },
     Parenthesis(Box<Expression>),
 }
 
@@ -36,6 +39,8 @@ enum CalcError {
     ExpectedNumber(Token),
     ExpectedFractionDigits(Token),
     UnexpectedTokenAfterExpression(Token),
+    UnknownIdentifier(String),
+    UnknownFunction(String),
     DivideByZero,
 }
 
@@ -54,6 +59,8 @@ impl fmt::Display for CalcError {
             CalcError::UnexpectedTokenAfterExpression(got) => {
                 write!(f, "unexpected token after expression: {got:?}")
             }
+            CalcError::UnknownIdentifier(name) => write!(f, "unknown identifier: {name}"),
+            CalcError::UnknownFunction(name) => write!(f, "unknown function: {name}"),
             CalcError::DivideByZero => write!(f, "division by zero"),
         }
     }
@@ -89,6 +96,17 @@ fn parse_input(input: &str) -> Result<Vec<Token>, CalcError> {
 
     while i < chars.len() {
         match chars[i] {
+            'a'..='z' | 'A'..='Z' | '_' => {
+                let mut ident = String::new();
+                while i < chars.len()
+                    && (chars[i].is_ascii_alphanumeric() || chars[i] == '_')
+                {
+                    ident.push(chars[i]);
+                    i += 1;
+                }
+                tokens.push(Token::Ident(ident));
+                continue;
+            }
             '0'..='9' => {
                 let mut num = 0;
                 while i < chars.len() && chars[i].is_digit(10) {
@@ -218,6 +236,24 @@ impl<'a> Parser<'a> {
     fn parse_primary(&mut self) -> Result<Expression, CalcError> {
         match self.peek() {
             Token::Number(_) => self.parse_number(),
+            Token::Ident(_) => {
+                let token = self.bump();
+                let Token::Ident(name) = token else {
+                    return Err(CalcError::ExpectedPrimary(token));
+                };
+
+                if matches!(self.peek(), Token::OpenParen) {
+                    self.bump();
+                    let arg = self.parse_expression()?;
+                    self.expect(Token::CloseParen)?;
+                    Ok(Expression::FunctionCall {
+                        name,
+                        arg: Box::new(arg),
+                    })
+                } else {
+                    Ok(Expression::Identifier(name))
+                }
+            }
             Token::OpenParen => {
                 self.bump();
                 let inner = self.parse_expression()?;
@@ -266,6 +302,11 @@ fn parse_tokens(tokens: Vec<Token>) -> Result<Expression, CalcError> {
 fn evaluate_expression(expr: &Expression) -> Result<f64, CalcError> {
     match expr {
         Expression::Number(n) => Ok(*n),
+        Expression::Identifier(name) => match name.as_str() {
+            "pi" | "PI" | "Pi" => Ok(std::f64::consts::PI),
+            "e" | "E" => Ok(std::f64::consts::E),
+            _ => Err(CalcError::UnknownIdentifier(name.clone())),
+        },
 
         Expression::Addition(left, right) => Ok(evaluate_expression(left)? + evaluate_expression(right)?),
 
@@ -282,6 +323,11 @@ fn evaluate_expression(expr: &Expression) -> Result<f64, CalcError> {
         }
 
         Expression::Exponentiation(left, right) => Ok(evaluate_expression(left)?.powf(evaluate_expression(right)?)),
+
+        Expression::FunctionCall { name, arg } => match name.as_str() {
+            "sqrt" => Ok(evaluate_expression(arg)?.sqrt()),
+            _ => Err(CalcError::UnknownFunction(name.clone())),
+        },
         
         Expression::Parenthesis(inner) => evaluate_expression(inner),
     }
@@ -312,6 +358,13 @@ mod tests {
         let tokens = parse_input(input)?;
         let expr = parse_tokens(tokens)?;
         evaluate_expression(&expr)
+    }
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() < 1e-10,
+            "expected {expected}, got {actual}"
+        );
     }
 
     #[test]
@@ -417,11 +470,29 @@ mod tests {
 
     #[test]
     fn test_error_unexpected_char() {
-        assert!(parse_input("1a").is_err());
+        assert!(parse_input("1@").is_err());
     }
 
     #[test]
     fn test_error_divide_by_zero() {
         assert_eq!(eval("1/0").unwrap_err(), CalcError::DivideByZero);
+    }
+
+    #[test]
+    fn test_error_unknown_identifier() {
+        assert_eq!(eval("a").unwrap_err(), CalcError::UnknownIdentifier("a".to_string()));
+    }
+
+    #[test]
+    fn test_eval_sqrt() {
+        assert_close(eval("sqrt(9)").unwrap(), 3.0);
+        assert_close(eval("sqrt(1+3)").unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_eval_constants() {
+        assert_close(eval("pi").unwrap(), std::f64::consts::PI);
+        assert_close(eval("e").unwrap(), std::f64::consts::E);
+        assert_close(eval("2*pi").unwrap(), 2.0 * std::f64::consts::PI);
     }
 }
