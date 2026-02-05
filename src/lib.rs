@@ -167,4 +167,31 @@ mod tests {
             CalcError::UnknownIdentifier("a".to_string())
         );
     }
+
+    #[test]
+    fn test_eval_multi_arg_functions() {
+        assert_close(eval_input("max(1,2,3,2)").unwrap(), 3.0);
+        assert_close(eval_input("min(1,2,3,2)").unwrap(), 1.0);
+        assert_close(eval_input("max(1+2, 2*3, 4^2)").unwrap(), 16.0);
+    }
+
+    #[test]
+    fn test_error_wrong_arity() {
+        assert_eq!(
+            eval_input("sqrt(1,2)").unwrap_err(),
+            CalcError::WrongArity {
+                name: "sqrt".to_string(),
+                expected: 1,
+                got: 2
+            }
+        );
+        assert_eq!(
+            eval_input("max()").unwrap_err(),
+            CalcError::WrongArity {
+                name: "max".to_string(),
+                expected: 1,
+                got: 0
+            }
+        );
+    }
 }

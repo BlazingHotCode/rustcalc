@@ -5,6 +5,7 @@ pub enum Token {
     Number(i32),
     Ident(String),
     DecimalPoint,
+    Comma,
     Plus,
     Minus,
     Mult,
@@ -41,6 +42,7 @@ pub(crate) fn tokenize(input: &str) -> Result<Vec<Token>, CalcError> {
                 continue;
             }
             '.' => tokens.push(Token::DecimalPoint),
+            ',' => tokens.push(Token::Comma),
             '+' => tokens.push(Token::Plus),
             '-' => tokens.push(Token::Minus),
             '*' => tokens.push(Token::Mult),

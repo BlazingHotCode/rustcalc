@@ -10,7 +10,7 @@ pub enum Expression {
     Multiplication(Box<Expression>, Box<Expression>),
     Division(Box<Expression>, Box<Expression>),
     Exponentiation(Box<Expression>, Box<Expression>),
-    FunctionCall { name: String, arg: Box<Expression> },
+    FunctionCall { name: String, args: Vec<Expression> },
     Parenthesis(Box<Expression>),
 }
 
@@ -124,11 +124,18 @@ impl<'a> Parser<'a> {
 
                 if matches!(self.peek(), Token::OpenParen) {
                     self.bump();
-                    let arg = self.parse_expression()?;
+                    let mut args = Vec::new();
+                    if !matches!(self.peek(), Token::CloseParen) {
+                        args.push(self.parse_expression()?);
+                        while matches!(self.peek(), Token::Comma) {
+                            self.bump();
+                            args.push(self.parse_expression()?);
+                        }
+                    }
                     self.expect(Token::CloseParen)?;
                     Ok(Expression::FunctionCall {
                         name,
-                        arg: Box::new(arg),
+                        args,
                     })
                 } else {
                     Ok(Expression::Identifier(name))
@@ -174,4 +181,3 @@ pub(crate) fn parse_tokens(tokens: &[Token]) -> Result<Expression, CalcError> {
         other => Err(CalcError::UnexpectedTokenAfterExpression(other.clone())),
     }
 }
-

@@ -11,6 +11,7 @@ pub enum CalcError {
     UnexpectedTokenAfterExpression(Token),
     UnknownIdentifier(String),
     UnknownFunction(String),
+    WrongArity { name: String, expected: usize, got: usize },
     DivideByZero,
 }
 
@@ -29,10 +30,12 @@ impl fmt::Display for CalcError {
             }
             CalcError::UnknownIdentifier(name) => write!(f, "unknown identifier: {name}"),
             CalcError::UnknownFunction(name) => write!(f, "unknown function: {name}"),
+            CalcError::WrongArity { name, expected, got } => {
+                write!(f, "wrong number of arguments for {name}: expected {expected}, got {got}")
+            }
             CalcError::DivideByZero => write!(f, "division by zero"),
         }
     }
 }
 
 impl std::error::Error for CalcError {}
-
